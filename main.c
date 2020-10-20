@@ -2,56 +2,26 @@
 #include <errno.h>
 #include <sys/vfs.h>
 #include <string.h>
+#include <unistd.h>
 
-#define AFFS_SUPER_MAGIC      0xADFF
-#define EFS_SUPER_MAGIC       0x00414A53
-#define EXT_SUPER_MAGIC       0x137D
-#define EXT2_OLD_SUPER_MAGIC  0xEF51
-#define EXT2_SUPER_MAGIC      0xEF53
-#define HPFS_SUPER_MAGIC      0xF995E849
-#define ISOFS_SUPER_MAGIC     0x9660
-#define MINIX_SUPER_MAGIC     0x137F 
-#define MINIX_SUPER_MAGIC2    0x138F
-#define MINIX2_SUPER_MAGIC    0x2468
-#define MINIX2_SUPER_MAGIC2   0x2478
+#define EXT4_SUPER_MAGIC      0xef53
 #define MSDOS_SUPER_MAGIC     0x4d44
-#define NCP_SUPER_MAGIC       0x564c
-#define NFS_SUPER_MAGIC       0x6969
-#define PROC_SUPER_MAGIC      0x9fa0
-#define SMB_SUPER_MAGIC       0x517B
-#define XENIX_SUPER_MAGIC     0x012FF7B4
-#define SYSV4_SUPER_MAGIC     0x012FF7B5
-#define SYSV2_SUPER_MAGIC     0x012FF7B6
-#define COH_SUPER_MAGIC       0x012FF7B7
-#define UFS_MAGIC             0x00011954
-#define XFS_SUPER_MAGIC       0x58465342
-#define _XIAFS_SUPER_MAGIC    0x012FD16D
+#define FUSE_SUPER_MAGIC 	  0x65735546
+#define NTFS_SB_MAGIC         0x5346544e
+#define HPFS_SUPER_MAGIC      0xf995e849
+#define BTRFS_SUPER_MAGIC     0x9123683e
 
 const char *fsType2str(long type) {
 	static struct fsname {
 		long type;
 		const char *name;
 	} table[] = {
-		{ AFFS_SUPER_MAGIC, "AFFS" },
-		{ COH_SUPER_MAGIC, "COH" },
-		{ EXT2_OLD_SUPER_MAGIC, "OLD EXT2" },
-		{ EXT2_SUPER_MAGIC, "EXT2" },
+		{ EXT4_SUPER_MAGIC, "EXT4" },
+		{ MSDOS_SUPER_MAGIC, "FAT" },
+		{ FUSE_SUPER_MAGIC, "exFAT" },
+		{ NTFS_SB_MAGIC, "NTFS" },
 		{ HPFS_SUPER_MAGIC, "HPFS" },
-		{ ISOFS_SUPER_MAGIC, "ISOFS" },
-		{ MINIX2_SUPER_MAGIC, "MINIX V2" },
-		{ MINIX2_SUPER_MAGIC2, "MINIX V2 30 char" },
-		{ MINIX_SUPER_MAGIC, "MINIX" },
-		{ MINIX_SUPER_MAGIC2, "MINIX 30 char" },
-		{ MSDOS_SUPER_MAGIC, "MSDOS" },
-		{ NCP_SUPER_MAGIC, "NCP" },
-		{ NFS_SUPER_MAGIC, "NFS" },
-		{ PROC_SUPER_MAGIC, "PROC" },
-		{ SMB_SUPER_MAGIC, "SMB" },
-		{ SYSV2_SUPER_MAGIC, "SYSV2" },
-		{ SYSV4_SUPER_MAGIC, "SYSV4" },
-		{ UFS_MAGIC, "UFS" },
-		{ XENIX_SUPER_MAGIC, "XENIX" },
-		{ _XIAFS_SUPER_MAGIC, "XIAFS" },
+		{ BTRFS_SUPER_MAGIC, "BTRFS" },
 		{ 0, NULL },
 	};
 	static char unknown[100];
@@ -65,8 +35,22 @@ const char *fsType2str(long type) {
 	return unknown;
 }
 
+int isFileExistsAccess(int argc, char *argv[]) {
+	if (argc != 2) {
+		printf("Wrong number of parameters! Enter only the path to the file or directory!\n");
+		return 1;
+	}
+    if (access(argv[1], F_OK) == 0)
+        return 0;
+	printf("No such file or directory: %s\n", argv[1]);
+    return 1;
+}
+
 int main(int argc, char *argv[]) {
     struct statfs fs;
+	if (isFileExistsAccess(argc, argv)) {
+		return 0;
+	}
     char *file = argv[1];
     int result = statfs(file, & fs);
     if (result != 0) {
@@ -74,7 +58,7 @@ int main(int argc, char *argv[]) {
                 argv[1], strerror(errno));
         return errno;
     }
-    printf("tf_type: %s\n", fsType2str(fs.f_type));
+    printf("tf_type: %s (%ld)\n", fsType2str(fs.f_type), fs.f_type);
     printf("tf_namelen: %ld\n", fs.f_namelen);
     return 0;
 }
