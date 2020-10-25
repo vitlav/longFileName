@@ -1,8 +1,16 @@
 #include <stdio.h>
 #include <errno.h>
-#include <sys/vfs.h>
 #include <string.h>
 #include <unistd.h>
+
+#if __APPLE__
+#include <sys/param.h>
+#include <sys/mount.h>
+#elif __linux__
+#include <sys/vfs.h>
+#elif
+printf("Unknown OS!")
+#endif
 
 #define EXT4_SUPER_MAGIC      0xef53
 #define MSDOS_SUPER_MAGIC     0x4d44
@@ -25,13 +33,12 @@ const char *fsType2str(long type) {
 		{ 0, NULL },
 	};
 	static char unknown[100];
-	int i;
-
-	for (i = 0; table[i].type != 0; i++)
+	
+	for (int i = 0; table[i].type != 0; i++)
 		if (table[i].type == type)
 			return table[i].name;
 
-	sprintf(unknown, "unknown type: %#lx", type);
+	sprintf(unknown, "unknown type:");
 	return unknown;
 }
 
@@ -40,17 +47,20 @@ int isFileExistsAccess(int argc, char *argv[]) {
 		printf("Wrong number of parameters! Enter only the path to the file or directory!\n");
 		return 1;
 	}
-    if (access(argv[1], F_OK) == 0)
-        return 0;
-	printf("No such file or directory: %s\n", argv[1]);
-    return 1;
+    if (access(argv[1], F_OK) != 0) {
+		printf("No such file or directory: %s\n", argv[1]);
+    	return 1;
+	}
+    return 0;
 }
 
 int main(int argc, char *argv[]) {
-    struct statfs fs;
+
 	if (isFileExistsAccess(argc, argv)) {
 		return 0;
 	}
+
+	struct statfs fs;
     char *file = argv[1];
     int result = statfs(file, & fs);
     if (result != 0) {
@@ -58,7 +68,13 @@ int main(int argc, char *argv[]) {
                 argv[1], strerror(errno));
         return errno;
     }
-    printf("tf_type: %s (%ld)\n", fsType2str(fs.f_type), fs.f_type);
-    printf("tf_namelen: %ld\n", fs.f_namelen);
+
+	#if __APPLE__
+    	printf("tf_type: %s\n", fs.f_fstypename);
+	#elif __linux__
+		printf("tf_type: %s %#lx\n", fsType2str(fs.f_type), fs.f_type);
+		printf("tf_namelen: %ld\n", fs.f_namelen);
+	#endif
+
     return 0;
 }
